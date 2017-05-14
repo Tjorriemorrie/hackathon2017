@@ -1,0 +1,45 @@
+host: localhost
+network:
+  name: netelk
+
+images:
+
+  elasticsearch:
+    name: develkes
+    url: docker.elastic.co/elasticsearch/elasticsearch:5.4.0
+    ports:
+      - int: 9200
+        ext: 9200
+    env:
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      xpack.security.enabled: false
+      xpack.monitoring.enabled: false
+    volumes:
+
+  logstash:
+    name: develkls
+    url: docker.elastic.co/logstash/logstash:5.4.0
+    ports: 
+    env:
+      xpack.security.enabled: false
+      xpack.monitoring.enabled: false
+    volumes:
+      pipeline: 
+        bind: /usr/share/logstash/pipeline
+        mode: ro
+      logs:
+        bind: /usr/share/logstash/logs
+        mode: ro
+
+  kibana:
+    name: develkkb
+    url: docker.elastic.co/kibana/kibana:5.4.0
+    ports:
+      - int: 5601
+        ext: 5601
+    env:
+      LOGGING_VERBOSE: True
+      ELASTICSEARCH_URL: http://develkes:9200
+      xpack.security.enabled: false
+      xpack.monitoring.enabled: false
+    volumes:

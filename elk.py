@@ -4,65 +4,27 @@ import docker.errors
 import json
 import logging
 import os.path
+import ruamel.yaml
 import time
 import webbrowser
 
 logger = logging.getLogger(__name__)
 
-ImageConfig = namedtuple('ImageConfig', ['name', 'url', 'ports', 'env', 'volumes'])
-
 
 class DevElk:
     """Development ELK stack"""
     PWD = os.path.dirname(os.path.abspath(__file__))
-    NETWORK = 'netelk'
-    IMAGES = [
-        ImageConfig(
-            'develkes',
-            'docker.elastic.co/elasticsearch/elasticsearch:5.4.0',
-            ports={9200: 9200},
-            env={
-                'ES_JAVA_OPTS': '-Xms512m -Xmx512m',
-                'xpack.security.enabled': 'false',
-                'xpack.monitoring.enabled': 'false',
-            },
-            volumes={},
-        ),
-        ImageConfig(
-            'develkls',
-            'docker.elastic.co/logstash/logstash:5.4.0',
-            ports={},
-            env={
-                'xpack.security.enabled': 'false',
-                'xpack.monitoring.enabled': 'false',
-            },
-            volumes={
-                '{}'.format(os.path.join(PWD, 'pipeline')): {
-                    'bind': '/usr/share/logstash/pipeline', 'mode': 'ro'
-                },
-                '{}'.format(os.path.join(PWD, 'logs')): {
-                    'bind': '/usr/share/logstash/logs', 'mode': 'ro'
-                },
-            },
-        ),
-        ImageConfig(
-            'develkkb',
-            'docker.elastic.co/kibana/kibana:5.4.0',
-            ports={5601: 5601},
-            env={
-                'LOGGING_VERBOSE': True,
-                'ELASTICSEARCH_URL': 'http://develkes:9200',
-                'xpack.security.enabled': 'false',
-                'xpack.monitoring.enabled': 'false',
-            },
-            volumes={},
-        ),
-    ]
+    FILE_CONFIG = os.path.join(PWD, 'config.yaml')
 
     def __init__(self, host, remove):
         """setup arguments and connect"""
-        self.host = host
-        logger.info('host: {}'.format(self.host))
+        with open(self.FILE_CONFIG, 'r') as f:
+            self.config = ruamel.yaml.safe_load(f)
+            logger.info('Loaded configuration')
+        logger.info('{}'.format(json.dumps(self.config, indent=4, default=str)))
+
+        self.config['host'] = host
+        logger.info('host: {}'.format(self.config['host']))
 
         self.client = docker.from_env()
         logger.info('connected to docker')
@@ -90,40 +52,50 @@ class DevElk:
 
     def start_network(self):
         """Creates network"""
-        logger.info('Creating network {}...'.format(self.NETWORK))
+        logger.info('Creating network {}...'.format(self.config['network']['name']))
         self.client.networks.prune()
-        self.network = self.client.networks.create(self.NETWORK)
+        self.network = self.client.networks.create(self.config['network']['name'])
 
     def start_containers(self):
         """Starts all containers"""
-        for image in self.IMAGES:
-            logger.info('starting container {}'.format(image))
+        for name, image in self.config['images'].items():
+            logger.info('starting container {}'.format(name))
 
             logger.debug('docker images: {}'.format(self.client.images.list()))
             if self.pull_images:
-                logger.info('pulling {}...'.format(image.name))
-                self.client.images.pull(image.url)
+                logger.info('pulling {}...'.format(name))
+                self.client.images.pull(image['url'])
 
-            logger.info('starting {}...'.format(image.name))
+            logger.info('starting {}...'.format(name))
             try:
-                con = self.client.containers.get(image.name)
+                con = self.client.containers.get(image['name'])
             except docker.errors.NotFound:
-                logger.debug('No existing {} container'.format(image.name))
-                # links = [(cn, cn) for cn in self.containers]
+                logger.debug('No existing {} container'.format(image['name']))
+                volumes = {}
+                if image['volumes']:
+                    for d, binding in image['volumes'].items():
+                        volumes[os.path.join(self.PWD, d)] = {
+                            'bind': binding['bind'],
+                            'mode': binding['mode']
+                        }
+                logger.debug('volumes: {}'.format(volumes))
+                ports = {}
+                if image['ports']:
+                    ports = {i['int']: i['ext'] for i in image['ports']}
+                logger.debug('ports: {}'.format(ports))
                 con = self.client.containers.run(
-                    image.url,
-                    name=image.name,
-                    ports=image.ports,
-                    environment=image.env,
+                    image['url'],
+                    name=image['name'],
+                    ports=ports,
+                    environment=image['env'],
                     network_mode=self.network.name,
-                    # links=links,
-                    volumes=image.volumes,
+                    volumes=volumes,
                     detach=True)
             else:
                 con.start()
 
-            self.containers[image.name] = con
-            logger.info('docker container {} running'.format(image.name))
+            self.containers[name] = con
+            logger.info('docker container {} running'.format(name))
 
     def stop_containers(self):
         """Shuts down all containers
@@ -144,7 +116,7 @@ class DevElk:
     def launch(self):
         """Wait for a running kibanan instance to run and launch ui"""
         logger.info('Waiting for kibana to start...')
-        con_kb = self.containers['develkkb']
+        con_kb = self.containers['kibana']
         for log in con_kb.logs(stream=True):
             log = json.loads(log)
             logger.debug('kibana: {}'.format(log))
