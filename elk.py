@@ -1,5 +1,6 @@
 import click
 from collections import namedtuple
+from distutils.dir_util import 
 import docker.errors
 import json
 import logging
@@ -26,7 +27,7 @@ class DevElk:
         self.config['host'] = host
         logger.info('host: {}'.format(self.config['host']))
 
-        self.client = docker.from_env()
+        self.docker = docker.from_env()
         logger.info('connected to docker')
 
         self.network = None
@@ -38,9 +39,12 @@ class DevElk:
 
     def run(self):
         """Run"""
+        self.load_logs()
         self.start_network()
         self.start_containers()
-        self.launch()
+
+        logger.info('Launching Kibana...')
+        webbrowser.open('http://localhost:5601')
 
         logger.info('running')
         try:
@@ -50,25 +54,30 @@ class DevElk:
             logger.info('shutting down gracefully...')
             self.stop_containers()
 
+    def load_logs(self):
+        """Load logs"""
+        if self.host == 'localhost':
+
+
     def start_network(self):
         """Creates network"""
         logger.info('Creating network {}...'.format(self.config['network']['name']))
-        self.client.networks.prune()
-        self.network = self.client.networks.create(self.config['network']['name'])
+        self.docker.networks.prune()
+        self.network = self.docker.networks.create(self.config['network']['name'])
 
     def start_containers(self):
         """Starts all containers"""
         for name, image in self.config['images'].items():
             logger.info('starting container {}'.format(name))
 
-            logger.debug('docker images: {}'.format(self.client.images.list()))
+            logger.debug('docker images: {}'.format(self.docker.images.list()))
             if self.pull_images:
                 logger.info('pulling {}...'.format(name))
-                self.client.images.pull(image['url'])
+                self.docker.images.pull(image['url'])
 
             logger.info('starting {}...'.format(name))
             try:
-                con = self.client.containers.get(image['name'])
+                con = self.docker.containers.get(image['name'])
             except docker.errors.NotFound:
                 logger.debug('No existing {} container'.format(image['name']))
                 volumes = {}
@@ -83,7 +92,7 @@ class DevElk:
                 if image['ports']:
                     ports = {i['int']: i['ext'] for i in image['ports']}
                 logger.debug('ports: {}'.format(ports))
-                con = self.client.containers.run(
+                con = self.docker.containers.run(
                     image['url'],
                     name=image['name'],
                     ports=ports,
@@ -96,6 +105,8 @@ class DevElk:
 
             self.containers[name] = con
             logger.info('docker container {} running'.format(name))
+
+            self.startup(con, image['startup'])
 
     def stop_containers(self):
         """Shuts down all containers
@@ -113,17 +124,14 @@ class DevElk:
                 logger.info('removing {}...'.format(container.name))
                 container.remove()
 
-    def launch(self):
-        """Wait for a running kibanan instance to run and launch ui"""
-        logger.info('Waiting for kibana to start...')
-        con_kb = self.containers['kibana']
-        for log in con_kb.logs(stream=True):
-            log = json.loads(log)
-            logger.debug('kibana: {}'.format(log))
-            if log['message'].startswith('Server running'):
+    def startup(self, container, phrase):
+        """Wait for a instance to startup"""
+        logger.info('Waiting for {} to start...'.format(container.name))
+        for log in container.logs(stream=True):
+            logger.debug('log: {}'.format(log))
+            if phrase in str(log):
+                logger.info('Phrase found: {}'.format(phrase))
                 break
-        logger.info('Launching Kibana...')
-        webbrowser.open('http://localhost:5601')
 
 
 @click.command()

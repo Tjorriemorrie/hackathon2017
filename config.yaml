@@ -12,17 +12,18 @@ images:
         ext: 9200
     env:
       ES_JAVA_OPTS: -Xms512m -Xmx512m
-      xpack.security.enabled: false
-      xpack.monitoring.enabled: false
+      xpack.security.enabled: "false"
+      xpack.monitoring.enabled: "false"
     volumes:
+    startup: "started"
 
   logstash:
     name: develkls
     url: docker.elastic.co/logstash/logstash:5.4.0
     ports: 
     env:
-      xpack.security.enabled: false
-      xpack.monitoring.enabled: false
+      xpack.security.enabled: "false"
+      xpack.monitoring.enabled: "false"
     volumes:
       pipeline: 
         bind: /usr/share/logstash/pipeline
@@ -30,6 +31,7 @@ images:
       logs:
         bind: /usr/share/logstash/logs
         mode: ro
+    startup: "Successfully started Logstash"
 
   kibana:
     name: develkkb
@@ -40,6 +42,7 @@ images:
     env:
       LOGGING_VERBOSE: True
       ELASTICSEARCH_URL: http://develkes:9200
-      xpack.security.enabled: false
-      xpack.monitoring.enabled: false
+      xpack.security.enabled: "false"
+      xpack.monitoring.enabled: "false"
     volumes:
+    startup: "Server running at"
