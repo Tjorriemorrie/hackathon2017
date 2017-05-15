@@ -1,4 +1,6 @@
-host: localhost
+xplan_base: xplanbase
+xplan_site: jaco
+
 network:
   name: netelk
 

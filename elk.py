@@ -1,10 +1,11 @@
 import click
-from collections import namedtuple
-from distutils.dir_util import 
+import coloredlogs
+from distutils.dir_util import copy_tree
 import docker.errors
 import json
 import logging
 import os.path
+from pexpect import popen_spawn
 import ruamel.yaml
 import time
 import webbrowser
@@ -16,16 +17,17 @@ class DevElk:
     """Development ELK stack"""
     PWD = os.path.dirname(os.path.abspath(__file__))
     FILE_CONFIG = os.path.join(PWD, 'config.yaml')
+    remove_containers = False
 
-    def __init__(self, host, remove):
+    def __init__(self, host):
         """setup arguments and connect"""
         with open(self.FILE_CONFIG, 'r') as f:
             self.config = ruamel.yaml.safe_load(f)
             logger.info('Loaded configuration')
         logger.info('{}'.format(json.dumps(self.config, indent=4, default=str)))
 
-        self.config['host'] = host
-        logger.info('host: {}'.format(self.config['host']))
+        self.host = host
+        logger.info('host: {}'.format(self.host))
 
         self.docker = docker.from_env()
         logger.info('connected to docker')
@@ -33,9 +35,6 @@ class DevElk:
         self.network = None
         self.containers = {}
         self.pull_images = False
-
-        logger.info('Removing containers on exit? {}'.format(remove))
-        self.remove_containers = remove
 
     def run(self):
         """Run"""
@@ -57,7 +56,27 @@ class DevElk:
     def load_logs(self):
         """Load logs"""
         if self.host == 'localhost':
+            log_path = 'C:/{xplan_base}/var/{xplan_site}/log'.format(
+                xplan_base=self.config['xplan_base'],
+                xplan_site=self.config['xplan_site']
+            )
+            logger.info('Copying logs from localhost dir: {}'.format(log_path))
+            copy_tree(log_path, os.path.join(self.PWD, 'logs'))
+        else:
+            self.compile_hotfix()
 
+    def compile_hotfix(self):
+        """Compiles hotfix"""
+        logger.info('Compiling hotfix...')
+        cmd = [
+            '"C:\cygwin64\bin\run.exe', '-p',
+            'C:/xplanbase/version/hotfix/bin/compile_hotfix.sh',
+            'C:/xplanbase/version/hotfix/logfiles/get_serverlog.py',
+        ]
+        logger.info('cmd = {}'.format(cmd))
+        popen_spawn.PopenSpawn(cmd)
+        logger.info('Compiling hotfix done')
+        0/0
 
     def start_network(self):
         """Creates network"""
@@ -83,7 +102,8 @@ class DevElk:
                 volumes = {}
                 if image['volumes']:
                     for d, binding in image['volumes'].items():
-                        volumes[os.path.join(self.PWD, d)] = {
+                        # volumes[os.path.join(self.PWD, d)] = {
+                        volumes['C:/Users/Jaco.Jansen/code/hackathon2017/{}'.format(d)] = {
                             'bind': binding['bind'],
                             'mode': binding['mode']
                         }
@@ -137,12 +157,17 @@ class DevElk:
 @click.command()
 @click.option('--host', type=click.STRING, default='localhost')
 @click.option('--remove', is_flag=True)
-def main(host, remove):
-    DevElk(host, remove).run()
+@click.option('--logs_path', type=click.STRING)
+def main(host, remove, logs_path):
+    develk = DevElk(host)
+    develk.remove_containers = remove
+    develk.logs_path = logs_path
+    develk.run()
 
 
 if __name__ == '__main__':
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s - %(levelname)-7s - %(name)-8s [%(funcName)s:%(lineno)d] :: %(message)s')
+    coloredlogs.install(level='DEBUG')
     main()
