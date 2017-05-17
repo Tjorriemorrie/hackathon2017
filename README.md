@@ -28,3 +28,9 @@ using elk stack for logs
 8) add colorama
 
 9) set logging level
+
+todo:
+discover
+dashboard
+grok all logfiles
+sign hotfix

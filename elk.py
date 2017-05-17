@@ -1,11 +1,13 @@
 import click
 import coloredlogs
+import datetime
 from distutils.dir_util import copy_tree
 import docker.errors
 import json
 import logging
 import os.path
-from pexpect import popen_spawn
+from pexpect import popen_spawn, EOF
+import requests
 import ruamel.yaml
 import time
 import webbrowser
@@ -49,12 +51,14 @@ class DevElk:
         try:
             while True:
                 time.sleep(1)
+                self.get_server_log()
         except KeyboardInterrupt:
             logger.info('shutting down gracefully...')
             self.stop_containers()
 
     def load_logs(self):
         """Load logs"""
+        self.clear_logs()
         if self.host == 'localhost':
             log_path = 'C:/{xplan_base}/var/{xplan_site}/log'.format(
                 xplan_base=self.config['xplan_base'],
@@ -64,19 +68,59 @@ class DevElk:
             copy_tree(log_path, os.path.join(self.PWD, 'logs'))
         else:
             self.compile_hotfix()
+            self.get_server_log()
+
+    def clear_logs(self):
+        """Clear current log directory"""
+        logger.info('clearing log directory...')
+        for root, dirs, files in os.walk(os.path.join(self.PWD, 'logs'), topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+                logger.debug('removed {}'.format(name))
+
+    def get_server_log(self):
+        """Send hotfix to host and get log"""
+        data = {
+            'process': '__all__',
+            'params': [],
+        }
+        files = {
+            'hotfix': open('C:/xplanbase/version/hotfix/logfiles/get_serverlog.pys', 'rb')
+        }
+        res = requests.post('{}/hotfix'.format(self.host), data=data, files=files)
+        res.raise_for_status()
+        if 'gpg execution failed' in res.text:
+            raise RuntimeError('Hotfix not signed')
+        logger.info('response size: {}'.format(len(res.text)))
+        tmp_logfile = os.path.join(self.PWD, 'logs', 'server.log')
+        logger.debug('saving fetched log info to {}'.format(tmp_logfile))
+        with open(tmp_logfile, 'wb') as f:
+            f.write(res.text.encode('UTF-8'))
+        logger.debug('log:\n{}'.format(res.text))
+        0/0
+        logger.info('res saved to file')
 
     def compile_hotfix(self):
         """Compiles hotfix"""
-        logger.info('Compiling hotfix...')
+        logger.info('Compiling hotfix... not supported')
+        return
         cmd = [
-            '"C:\cygwin64\bin\run.exe', '-p',
+            # '"C:\cygwin64\bin\run.exe', '-p',
+            'sh',
             'C:/xplanbase/version/hotfix/bin/compile_hotfix.sh',
             'C:/xplanbase/version/hotfix/logfiles/get_serverlog.py',
         ]
         logger.info('cmd = {}'.format(cmd))
-        popen_spawn.PopenSpawn(cmd)
+        p = popen_spawn.PopenSpawn(cmd)
+        logger.info(p.before)
+        try:
+            p.expect('Password:')
+            p.sendline('foo')
+        except EOF as e:
+            logger.error(e)
+            logger.info('before {}'.format(p.before))
+            logger.info('after {}'.format(p.after))
         logger.info('Compiling hotfix done')
-        0/0
 
     def start_network(self):
         """Creates network"""
