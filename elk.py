@@ -19,14 +19,16 @@ class DevElk:
     """Development ELK stack"""
     PWD = os.path.dirname(os.path.abspath(__file__))
     FILE_CONFIG = os.path.join(PWD, 'config.yaml')
-    remove_containers = False
 
-    def __init__(self, host):
+    remove_containers = False
+    keep_existing = False
+
+    def __init__(self, host, pull_images):
         """setup arguments and connect"""
         with open(self.FILE_CONFIG, 'r') as f:
             self.config = ruamel.yaml.safe_load(f)
             logger.info('Loaded configuration')
-        logger.info('{}'.format(json.dumps(self.config, indent=4, default=str)))
+        # logger.info('{}'.format(json.dumps(self.config, indent=4, default=str)))
 
         self.host = host
         logger.info('host: {}'.format(self.host))
@@ -36,11 +38,26 @@ class DevElk:
 
         self.network = None
         self.containers = {}
-        self.pull_images = False
+
+        logger.info('pull images? {}'.format(pull_images))
+        if pull_images:
+            for name, image in self.config['images'].items():
+                logger.info('pulling new image for {}'.format(image['url']))
+                self.docker.images.pull(image['url'])
+                try:
+                    self.docker.containers.get(image['name']).remove(force=True)
+                except docker.errors.NotFound:
+                    pass
+            logger.info('docker images: {}'.format(self.docker.images.list()))
 
     def run(self):
         """Run"""
+        # logger.info('{}'.format(os.environ))
+        # logger.debug('{}'.format(vars(self)))
+        # return
+        self.clear_logs()
         self.load_logs()
+
         self.start_network()
         self.start_containers()
 
@@ -51,14 +68,30 @@ class DevElk:
         try:
             while True:
                 time.sleep(1)
-                self.get_server_log()
+                self.load_logs()
         except KeyboardInterrupt:
             logger.info('shutting down gracefully...')
+            self.clear_logs()
             self.stop_containers()
+
+    def clear_logs(self):
+        """Clear current log directory"""
+        if self.keep_existing:
+            logger.info('Keeping existing logs: not clearing')
+            return
+
+        logger.info('clearing logs from directory...')
+        for root, dirs, files in os.walk(os.path.join(self.PWD, 'logs'), topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+                logger.debug('removed {}'.format(name))
 
     def load_logs(self):
         """Load logs"""
-        self.clear_logs()
+        if self.keep_existing:
+            logger.info('Keeping existing logs: not loading')
+            return
+
         if self.host == 'localhost':
             log_path = 'C:/{xplan_base}/var/{xplan_site}/log'.format(
                 xplan_base=self.config['xplan_base'],
@@ -69,14 +102,6 @@ class DevElk:
         else:
             self.compile_hotfix()
             self.get_server_log()
-
-    def clear_logs(self):
-        """Clear current log directory"""
-        logger.info('clearing log directory...')
-        for root, dirs, files in os.walk(os.path.join(self.PWD, 'logs'), topdown=False):
-            for name in files:
-                os.remove(os.path.join(root, name))
-                logger.debug('removed {}'.format(name))
 
     def get_server_log(self):
         """Send hotfix to host and get log"""
@@ -133,10 +158,6 @@ class DevElk:
         for name, image in self.config['images'].items():
             logger.info('starting container {}'.format(name))
 
-            logger.debug('docker images: {}'.format(self.docker.images.list()))
-            if self.pull_images:
-                logger.info('pulling {}...'.format(name))
-                self.docker.images.pull(image['url'])
 
             logger.info('starting {}...'.format(name))
             try:
@@ -179,10 +200,10 @@ class DevElk:
             logger.info('stopping {}...'.format(container.name))
             while True:
                 try:
-                    container.stop(timeout=5)
+                    container.stop(timeout=10)
                     break
                 except:
-                    pass
+                    logger.debug('retrying stopping {}...'.format(container.name))
 
             if self.remove_containers:
                 logger.info('removing {}...'.format(container.name))
@@ -199,13 +220,16 @@ class DevElk:
 
 
 @click.command()
-@click.option('--host', type=click.STRING, default='localhost')
+@click.option('--host', type=click.STRING)
 @click.option('--remove', is_flag=True)
-@click.option('--logs_path', type=click.STRING)
-def main(host, remove, logs_path):
-    develk = DevElk(host)
-    develk.remove_containers = remove
-    develk.logs_path = logs_path
+@click.option('--keep', is_flag=True)
+@click.option('--pull', is_flag=True)
+def main(host, remove, keep, pull):
+    host = host or os.getenv('ELK_HOST', 'localhost')
+    pull_images = pull or os.getenv('ELK_PULL', False)
+    develk = DevElk(host, pull_images)
+    develk.remove_containers = remove or os.getenv('ELK_REMOVE', False)
+    develk.keep_existing = keep or os.getenv('ELK_KEEP', False)
     develk.run()
 
 
