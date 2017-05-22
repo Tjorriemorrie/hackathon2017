@@ -1,9 +1,43 @@
+.flex {
+    display: flex;
+    justify-content: space-around;
+}
+
+.center {
+    text-align: center;
+}
+
+figure img {
+    width: 100%;
+    min-width: 150px;
+}
+
+.down {
+    margin-top: 4em;
+}
+
+img.small {
+    width: 10em;
+}
+
 .slide {
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center center;
 }
 
-.iress {
+.bg-iress {
     background-image: url('./../img/iress.jpg');
+}
+
+.bg-elastic-site {
+    background-image: url('./../img/elastic_site.jpg');
+}
+
+.bg-kibana-discover {
+    background-image: url('./../img/kibana_discover.jpg');
+}
+
+.bg-continuous {
+    background-image: url('./../img/continuous.png');
 }

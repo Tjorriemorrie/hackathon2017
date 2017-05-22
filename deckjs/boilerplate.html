@@ -37,68 +37,118 @@
 
     <!-- Begin slides. Just make elements with a class of slide. -->
 
-    <section class="slide iress">
+    <section class="slide bg-iress">
       <h1>dev/elk</h1>
     </section>
 
     <section class="slide">
-      <p><strong>E</strong>lasticsearch</p>
-      <p><strong>L</strong>ogstash</p>
-      <p><strong>K</strong>ibana</p>
-      <p><em>for dev logging</em></p>
-    </section>
-
-    <section class="slide">
-      <p><code>python elk.py</code></p>
-    </section>
-
-    <section class="slide">
-    </section>
-
-    <section class="slide">
-      <h1>Retrieve continuously</h1>
-    </section>
-
-    <section class="slide">
-      <p><code>python elk.py --keep</code></p>
-    </section>
-
-    <section class="slide">
-      <h1>Containers</h1>
-    </section>
-
-    <section class="slide">
-      <h1>Graceful shutdown</h1>
-    </section>
-
-    <section class="slide">
-      <p><code>python elk.py --pull</code></p>
-    </section>
-
-    <section class="slide">
-      <p><code>python elk.py --host https://au02sp-t-xweb1.semiprod.iress.com.au/pwmukmaster</code></p>
-    </section>
-
-    <section class="slide">
-      <h1><code>python elk.py --remove</code></h1>
-    </section>
-
-    <section class="slide">
-      <h2>Logging observations:</h2>
+      <h3>ELK stack</h3>
       <div class="flex">
-        <div>
-          <p>rotation</p>
-        </div>
-        <div>
-          <p>more</p>
-        </div>
+        <figure>
+          <img src="img/logo_elasticsearch.svg">
+          <figcaption>Elasticsearch</figcaption>
+        </figure>
+        <figure>
+          <img src="img/logo_logstash.svg">
+          <figcaption>Logstash</figcaption>
+        </figure>
+        <figure>
+          <img src="img/logo_kibana.svg">
+          <figcaption>Kibana</figcaption>
+        </figure>
       </div>
+      <p class="center down"><em>for dev logging</em></p>
+    </section>
+
+    <section class="slide">
+      <h3>command:</h3>
+      <p class=""><code>python elk.py</code></p>
+      <img class="center" src="img/command.jpg">
+    </section>
+
+    <section class="slide bg-kibana-discover">
+    </section>
+
+    <section class="slide">
+      <h4>Retrieve continuously</h4>
+      <img src="img/continuous.png">
+    </section>
+
+    <section class="slide">
+      <p class="down"><code>python elk.py --keep</code></p>
+      <img src="img/offline.png">
+    </section>
+
+    <section class="slide">
+      <h2>Docker containers</h2>
+      <img src="img/containers.jpg">
+    </section>
+
+    <section class="slide">
+      <h3>Graceful shutdown</h3>
+      <p><img src="img/landing.jpg"></p>
+    </section>
+
+    <section class="slide">
+      <p class="down"><code>python elk.py --pull</code></p>
+      <p><img src="img/pull.JPG"></p>
+    </section>
+
+    <section class="slide">
+      <p class="down"><code>python elk.py --host https://au02sp-t-xweb1.semiprod.iress.com.au/pwmukmaster</code></p>
+      <p><img src="img/host.png"></p>
+    </section>
+
+    <section class="slide">
+      <p class="down"><code>python elk.py --remove</code></p>
+      <p><img src="img/delete.jpg"></p>
+    </section>
+
+    <section class="slide">
+      <h3>Graph</h3>
+      <p><img src="img/graph.jpg"></p>
+    </section>
+
+    <section class="slide">
+      <h3>Machine Learning</h3>
+      <p><img src="img/anomaly.jpg"></p>
+    </section>
+
+    <section class="slide">
+      <h3>Machine Learning</h3>
+      <p><img src="img/anomaly_users.jpg"></p>
+    </section>
+
+    <section class="slide">
+      <h3>Machine Learning</h3>
+      <p><img src="img/anomaly_users.jpg"></p>
+    </section>
+
+    <section class="slide">
+      <h3>Machine Learning</h3>
+      <p><img src="img/metric.jpg"></p>
+    </section>
+
+    <section class="slide">
+      <h3>Logging observations:</h3>
       <div class="flex">
         <div>
-          <p>module</p>
+          <figure>
+            <img src="img/rotation.jpg">
+            <figcaption>rotation</figcaption>
+          </figure>
         </div>
         <div>
-          <p>conf</p>
+          <figure>
+            <img src="img/logger.jpg">
+            <figcaption>module</figcaption>
+          </figure>
+        </div>
+        <div>
+          <figure>
+            <img src="img/more.jpg">
+            <figcaption>more</figcaption>
+          </figure>
         </div>
       </div>
     </section>
@@ -109,6 +159,7 @@
         ELK_KEEP
         ELK_REMOVE
         ELK_HOST
+        ELK_PULL
       </code></p>
     </section>
 

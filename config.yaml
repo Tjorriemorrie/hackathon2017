@@ -17,15 +17,16 @@ images:
       xpack.security.enabled: "false"
       xpack.monitoring.enabled: "false"
     volumes:
-    startup: "started"
+    site: "http://localhost:9200"
 
   logstash:
     name: develkls
     url: docker.elastic.co/logstash/logstash:5.4.0
-    ports: 
+    ports:
     env:
       xpack.security.enabled: "false"
       xpack.monitoring.enabled: "false"
+      log.level: debug
     volumes:
       pipeline: 
         bind: /usr/share/logstash/pipeline
@@ -33,7 +34,7 @@ images:
       logs:
         bind: /usr/share/logstash/logs
         mode: ro
-    startup: "Successfully started Logstash"
+    site:
 
   kibana:
     name: develkkb
@@ -47,4 +48,4 @@ images:
       xpack.security.enabled: "false"
       xpack.monitoring.enabled: "false"
     volumes:
-    startup: "Server running at"
+    site: "http://localhost:5601"

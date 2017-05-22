@@ -60,6 +60,7 @@ class DevElk:
 
         self.start_network()
         self.start_containers()
+        self.wait_startup()
 
         logger.info('Launching Kibana...')
         webbrowser.open('http://localhost:5601')
@@ -71,7 +72,8 @@ class DevElk:
                 self.load_logs()
         except KeyboardInterrupt:
             logger.info('shutting down gracefully...')
-            self.clear_logs()
+            if self.remove_containers:
+                self.clear_logs()
             self.stop_containers()
 
     def clear_logs(self):
@@ -89,9 +91,8 @@ class DevElk:
     def load_logs(self):
         """Load logs"""
         if self.keep_existing:
-            logger.info('Keeping existing logs: not loading')
+            # logger.info('Keeping existing logs: not loading')
             return
-
         if self.host == 'localhost':
             log_path = 'C:/{xplan_base}/var/{xplan_site}/log'.format(
                 xplan_base=self.config['xplan_base'],
@@ -117,13 +118,12 @@ class DevElk:
         if 'gpg execution failed' in res.text:
             raise RuntimeError('Hotfix not signed')
         logger.info('response size: {}'.format(len(res.text)))
-        tmp_logfile = os.path.join(self.PWD, 'logs', 'server.log')
+        tmp_logfile = os.path.join(self.PWD, 'logs', 'server_tail.log')
         logger.debug('saving fetched log info to {}'.format(tmp_logfile))
         with open(tmp_logfile, 'wb') as f:
             f.write(res.text.encode('UTF-8'))
-        logger.debug('log:\n{}'.format(res.text))
-        0/0
-        logger.info('res saved to file')
+        # logger.debug('log:\n{}'.format(res.text))
+        logger.info('{} saved to file {}'.format(len(res.text), tmp_logfile))
 
     def compile_hotfix(self):
         """Compiles hotfix"""
@@ -187,11 +187,30 @@ class DevElk:
                     detach=True)
             else:
                 con.start()
+            time.sleep(10)
 
             self.containers[name] = con
             logger.info('docker container {} running'.format(name))
 
-            self.startup(con, image['startup'])
+    def wait_startup(self):
+        """Wait for a instances to startup"""
+        for name, con in self.containers.items():
+            site = self.config['images'][name]['site']
+            logger.info('Waiting for {} to start at {}...'.format(name, site))
+            if not site:
+                logger.info('Skipping {}'.format(name))
+                continue
+            while True:
+                try:
+                    res = requests.head(site)
+                    res.raise_for_status()
+                except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as e:
+                    logger.debug(e)
+                    time.sleep(10)
+                else:
+                    logger.info('Site started: {}'.format(res.headers))
+                    break
+        logger.info('All sites started')
 
     def stop_containers(self):
         """Shuts down all containers
@@ -208,15 +227,6 @@ class DevElk:
             if self.remove_containers:
                 logger.info('removing {}...'.format(container.name))
                 container.remove()
-
-    def startup(self, container, phrase):
-        """Wait for a instance to startup"""
-        logger.info('Waiting for {} to start...'.format(container.name))
-        for log in container.logs(stream=True):
-            logger.debug('log: {}'.format(log))
-            if phrase in str(log):
-                logger.info('Phrase found: {}'.format(phrase))
-                break
 
 
 @click.command()
